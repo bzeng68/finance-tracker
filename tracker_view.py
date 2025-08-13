@@ -13,10 +13,11 @@ class TrackerView:
         
         if uploaded_file is not None:
             try:
-                return self.transaction_manager.add_transactions(
+                self.transaction_manager.add_transactions(
                     uploaded_file, 
                     self.categories_utils.get_categories()
                 )
+                self.transaction_manager.save_transactions()
             except Exception as e:
                 st.error(f"Error processing file: {str(e)}")
                 raise e
@@ -75,6 +76,7 @@ class TrackerView:
                 self.transaction_manager.update_expense_transaction(idx, new_category)
                 self.categories_utils.add_keyword_to_category(new_category, description)
                 self.categories_utils.save_categories()
+                self.transaction_manager.save_transactions()
                 
     def create_expenses_summary(self, expenses_df):
         st.subheader("Expense Summary")

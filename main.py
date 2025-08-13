@@ -3,8 +3,8 @@ from categories_utils import CategoriesUtils
 from tracker_view import TrackerView
 
 def main():
-    transaction_manager = TransactionManager()
     categories_utils = CategoriesUtils()
+    transaction_manager = TransactionManager(categories_utils.get_categories())
     tracker_view = TrackerView(transaction_manager, categories_utils)
     
     tracker_view.handle_file_upload()
