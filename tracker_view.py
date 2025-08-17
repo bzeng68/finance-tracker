@@ -123,46 +123,50 @@ class TrackerView:
         )
         
     def display_budgets(self):
-        current_budget = self.show_budget_selector()
-        current_monthly_transactions = self.show_month_selector()
         self.show_create_budget_form()
+        current_budget, current_monthly_transactions = self.show_selectors()
         
-        if current_budget and current_monthly_transactions:
+        if current_budget and current_monthly_transactions is not None:
             self.display_budget_calculations(current_budget, current_monthly_transactions)
-        
-    def show_budget_selector(self):
+            
+    def show_selectors(self):
         saved_budgets = self.budget_manager.list_budgets()
-
-        if saved_budgets:
-            selected = st.selectbox("Select existing budget:", saved_budgets)
-            loaded = self.budget_manager.load_budget(selected)
-            if loaded:
-                return loaded
-        else:
-            st.info("No budgets saved yet. Add one below!")  
-    
-    def show_month_selector(self):
         available_months = self.transaction_manager.get_available_months()
-        if available_months:
-            selected = st.selectbox("Select month of transactions:", available_months)
-            selected_transactions_month_filepath = selected.replace(" ", "_") + "_Transactions.csv"
-            loaded_expenses, _ = self.transaction_manager.separate_transactions(
-                self.transaction_manager.load_transactions(
-                    PREVIOUS_TRANSACTIONS_PATH + "/" + selected_transactions_month_filepath,
-                    self.categories_utils.get_categories()
-                )
-            )
-            if loaded_expenses is not None:
-                return loaded_expenses
-        else:
+        
+        if saved_budgets and available_months:
+            return self.show_budget_selector(saved_budgets), self.show_month_selector(available_months)
+        elif not saved_budgets:
+            st.info("No budgets saved yet. Add one below!")  
+        elif not available_months:
             st.info("No months of transactions saved yet. Add one in above!")  
+        else:
+            st.info("No budgets or months of transactions saved yet. Add some before doing budget calculations!")
+        return None, None
+        
+    def show_budget_selector(self, saved_budgets):
+        selected = st.selectbox("Select existing budget:", saved_budgets)
+        loaded = self.budget_manager.load_budget(selected)
+        if loaded:
+            return loaded
+    
+    def show_month_selector(self, available_months):
+        selected = st.selectbox("Select month of transactions:", available_months)
+        selected_transactions_month_filepath = selected.replace(" ", "_") + "_Transactions.csv"
+        loaded_expenses, _ = self.transaction_manager.separate_transactions(
+            self.transaction_manager.load_transactions(
+                PREVIOUS_TRANSACTIONS_PATH + "/" + selected_transactions_month_filepath,
+                self.categories_utils.get_categories()
+            )
+        )
+        if loaded_expenses is not None:
+            return loaded_expenses
         
     def show_create_budget_form(self):
         with st.expander("Add Budget"):
             budget_name = st.text_input("Budget Name", placeholder="e.g. Vacation, Groceries, Default")
 
             if "num_categories" not in st.session_state:
-                st.session_state.num_categories = 1
+                st.session_state.num_categories = 0
             if "budget_categories" not in st.session_state:
                 st.session_state.budget_categories = []
             
@@ -199,12 +203,10 @@ class TrackerView:
                     budget = {}
                     
     def display_budget_calculations(self, budget, monthly_transactions):
-        budget_categories = set(budget.keys())
-        transaction_categories = set(monthly_transactions['Category'].unique())
+        categorized_transactions = monthly_transactions[monthly_transactions["Category"] != "Uncategorized"]
         
-        if 'Uncategorized' in transaction_categories:
-            st.warning("Please categorize all your transactions before calculating budgets")
-            return
+        budget_categories = set(budget.keys())
+        transaction_categories = set(categorized_transactions["Category"].unique())
 
         missing_in_transactions = budget_categories - transaction_categories
         missing_in_budget = transaction_categories - budget_categories
@@ -215,23 +217,43 @@ class TrackerView:
             st.warning(f"Categories in transactions but not in budget: {missing_in_budget}")
 
         if not missing_in_budget and not missing_in_transactions:
+            spent_per_category = categorized_transactions.groupby('Category')['Amount'].sum().reset_index()
+            spent_per_category.rename(columns={'Amount': 'Spent'}, inplace=True)
+
             summary = pd.DataFrame(columns=["Category", "Budget", "Spent", "Remaining"])
 
             for cat, limit in budget.items():
-                spent = monthly_transactions.loc[monthly_transactions['category'] == cat, 'amount'].sum()
-                remaining = limit - spent
+                limit_float = float(limit)
+                spent = float(spent_per_category[spent_per_category["Category"] == cat]["Spent"])
+                remaining = float(limit_float - spent)
                 summary = pd.concat([summary, pd.DataFrame([{
                     "Category": cat,
-                    "Budget": limit,
+                    "Budget": limit_float,
                     "Spent": spent,
-                    "Remaining": remaining
+                    "Remaining": remaining,
+                    "Progress": "✔" if remaining >= 0 else "✖"
                 }])], ignore_index=True)
-
+                
             st.subheader("Summary")
-            st.dataframe(summary)
+            st.dataframe(
+                summary, 
+                column_config={
+                    "Budget": st.column_config.NumberColumn("Budget", format = "$%.2f"),
+                    "Spent": st.column_config.NumberColumn("Amount", format = "$%.2f"),
+                    "Remaining": st.column_config.NumberColumn("Remaining", format = "$%.2f")
+                },
+                hide_index = True
+            )
 
-            st.subheader("Detailed Transactions")
+            st.subheader("Category Breakdown")
             for cat in budget.keys():
-                cat_transactions = monthly_transactions[monthly_transactions['category'] == cat]
+                cat_transactions = monthly_transactions[monthly_transactions["Category"] == cat]
                 with st.expander(f"{cat} ({len(cat_transactions)} transactions)"):
-                    st.dataframe(cat_transactions)
+                    st.dataframe(
+                        cat_transactions[["Transaction Date", "Description", "Amount"]],
+                        column_config={
+                            "Transaction Date": st.column_config.DateColumn("Transaction Date", format = "MM/DD/YYYY"),
+                            "Amount": st.column_config.NumberColumn("Amount", format = "$%.2f")
+                        },
+                        hide_index = True
+                    )

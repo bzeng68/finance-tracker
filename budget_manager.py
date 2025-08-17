@@ -11,7 +11,7 @@ class BudgetManager:
         
         problems_with_budget = self.validate_budget(name, budget)
 
-        if problems_with_budget:
+        if not problems_with_budget:
             with open(filename, "w") as f:
                 json.dump(budget, f, indent=2)
         return problems_with_budget

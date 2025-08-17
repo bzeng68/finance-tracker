@@ -51,7 +51,7 @@ class TransactionManager:
     def clean_transactions(self, df):
         df.columns = [col.strip() for col in df.columns]
         df["Amount"] = df["Amount"].astype(float)
-        df["Amount"] = df['Amount'].apply(lambda x: x * -1 if x < 0 else x)
+        df["Amount"] = df["Amount"].apply(lambda x: x * -1 if x < 0 else x)
         df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], format="%m/%d/%Y")
         df["Category"] = "Uncategorized"
         
