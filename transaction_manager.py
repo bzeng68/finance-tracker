@@ -85,3 +85,6 @@ class TransactionManager:
     
     def update_expense_transaction(self, idx, new_value):
         self.expenses.at[idx, "Category"] = new_value
+        
+    def get_available_months(self):
+        return [entry.split("_Transactions")[0].replace("_", " ") for entry in os.listdir(PREVIOUS_TRANSACTIONS_PATH)]
