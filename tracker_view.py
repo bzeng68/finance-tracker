@@ -1,15 +1,18 @@
+import time
 import streamlit as st
 import plotly.express as px
 import pandas as pd
+import threading
 from constants import PREVIOUS_TRANSACTIONS_PATH
 
 class TrackerView:
-    def __init__(self, transaction_manager, categories_utils, budget_manager):
+    def __init__(self, transaction_manager, categories_utils, budget_manager, chatbot_manager):
         st.set_page_config(page_title="Finance Tracker", layout="wide")
         st.title("Finance Dashboard")
         self.transaction_manager = transaction_manager
         self.categories_utils = categories_utils
         self.budget_manager = budget_manager
+        self.chatbot_manager = chatbot_manager
         
     def handle_file_upload(self):
         uploaded_file = st.file_uploader("Upload your transaction CSV file", type=["csv"])
@@ -26,10 +29,13 @@ class TrackerView:
                 raise e
                 
     def show_separated_tabs(self):
-        self.expenses_tab, self.payments_tab, self.budgets_tab = st.tabs(["Expenses", "Payments", "Budgets"])
+        self.expenses_tab, self.payments_tab, self.budgets_tab, self.chatbot_tab = st.tabs(
+            ["Expenses", "Payments", "Budgets", "Chatbot"]
+        )
         self.show_expenses_tab()
         self.show_payments_tab()
         self.show_budgets_tab()
+        self.show_chatbot_tab()
                 
     def show_expenses_tab(self):
         expenses = self.transaction_manager.expenses
@@ -45,6 +51,10 @@ class TrackerView:
     def show_budgets_tab(self):
         with self.budgets_tab:
             self.display_budgets()
+            
+    def show_chatbot_tab(self):
+        with self.chatbot_tab:
+            self.display_chatbot()
             
     def create_add_category(self):
         new_category = st.text_input("New Category Name")
@@ -257,3 +267,27 @@ class TrackerView:
                         },
                         hide_index = True
                     )
+                    
+    def display_chatbot(self):
+        if "chatbot" not in st.session_state:
+            st.session_state.messages = []
+
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                
+        if query := st.chat_input("Ask me about your finances..."):
+            st.session_state.messages.append({"role": "user", "content": query})
+            with st.chat_message("user"):
+                st.markdown(query)
+
+            with st.chat_message("assistant"):
+                placeholder = st.empty()
+                for i in range(9):
+                    placeholder.markdown("Bot is thinking" + "." * (i % 3 + 1))
+                    time.sleep(0.5)
+
+                response = self.chatbot_manager.ask(st.session_state.messages)
+
+                placeholder.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})

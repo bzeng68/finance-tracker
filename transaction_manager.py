@@ -15,13 +15,7 @@ class TransactionManager:
             self.add_transactions(full_path, categories)
             
     def save_transactions(self):
-        expenses_to_save = self.expenses
-        payments_to_save = self.payments
-        
-        expenses_to_save["Type"] = "Sale"
-        payments_to_save["Type"] = "Payment"
-        
-        df_to_save = pd.concat([expenses_to_save, payments_to_save], ignore_index = True)
+        df_to_save = self.retype_transactions()
         df_to_save["Transaction Date"] = df_to_save["Transaction Date"].dt.strftime("%m/%d/%Y")
 
         for period, monthly_df in self.group_transactions_by_month(df_to_save):
@@ -88,3 +82,12 @@ class TransactionManager:
         
     def get_available_months(self):
         return [entry.split("_Transactions")[0].replace("_", " ") for entry in os.listdir(PREVIOUS_TRANSACTIONS_PATH)]
+    
+    def retype_transactions(self):
+        expenses_to_save = self.expenses
+        payments_to_save = self.payments
+        
+        expenses_to_save["Type"] = "Sale"
+        payments_to_save["Type"] = "Payment"
+        
+        return pd.concat([expenses_to_save, payments_to_save], ignore_index = True)

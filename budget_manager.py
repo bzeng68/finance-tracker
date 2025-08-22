@@ -51,3 +51,12 @@ class BudgetManager:
 
     def list_budgets(self):
         return [f.replace(".json", "") for f in os.listdir(self.storage_dir)]
+    
+    def get_all_budgets(self):
+        budget_names = self.list_budgets()
+        
+        budgets_json = {}
+        for name in budget_names:
+            budgets_json[name] = self.load_budget(name)
+
+        return budgets_json

@@ -3,3 +3,4 @@ __pycache__
 categories.json
 previous_transactions
 budgets
+chroma_db
