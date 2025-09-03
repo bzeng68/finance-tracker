@@ -1,0 +1,1 @@
+Developed a RAG AI chatbot using LangChain–Ollama to provide natural language insights to transactions and budgets, automating financial analysis while supporting smarter spending habits<img width="468" height="56" alt="image" src="https://github.com/user-attachments/assets/da0b3043-2d29-44bf-80d0-006f920cded6" />
